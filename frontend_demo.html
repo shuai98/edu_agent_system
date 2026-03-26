@@ -1,902 +1,232 @@
-<!DOCTYPE html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduReflex - 学习导航系统</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: #0f0f0f;
-            color: #e0e0e0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* 顶部导航栏 */
-        .navbar {
-            background: rgba(20, 20, 20, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        .logo-icon {
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-        }
-
-        .nav-info {
-            display: flex;
-            gap: 1.5rem;
-            font-size: 0.875rem;
-            color: #888;
-        }
-
-        .nav-info span {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        /* 主容器 */
-        .main-container {
-            flex: 1;
-            display: flex;
-            max-width: 1400px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 2rem;
-            gap: 2rem;
-        }
-
-        /* 聊天区域 */
-        .chat-section {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: rgba(20, 20, 20, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            overflow: hidden;
-        }
-
-        .chat-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(30, 30, 30, 0.5);
-        }
-
-        .chat-header h2 {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: #fff;
-            margin-bottom: 0.5rem;
-        }
-
-        .chat-header p {
-            font-size: 0.875rem;
-            color: #888;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-
-        .chat-messages::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .chat-messages::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
-        }
-
-        /* 消息样式 */
-        .message {
-            display: flex;
-            gap: 1rem;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.user {
-            flex-direction: row-reverse;
-        }
-
-        .message-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            flex-shrink: 0;
-        }
-
-        .message.user .message-avatar {
-            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
-        }
-
-        .message.agent .message-avatar {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .message.system .message-avatar {
-            background: rgba(255, 200, 0, 0.2);
-        }
-
-        .message-content {
-            flex: 1;
-            max-width: 70%;
-        }
-
-        .message-bubble {
-            padding: 1rem 1.25rem;
-            border-radius: 12px;
-            line-height: 1.6;
-            word-wrap: break-word;
-        }
-
-        .message.user .message-bubble {
-            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
-            color: #fff;
-        }
-
-        .message.agent .message-bubble {
-            background: rgba(40, 40, 40, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #e0e0e0;
-        }
-
-        .message.system .message-bubble {
-            background: rgba(255, 200, 0, 0.1);
-            border: 1px solid rgba(255, 200, 0, 0.3);
-            color: #ffc800;
-            font-size: 0.875rem;
-            text-align: center;
-        }
-
-        .message-meta {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-            font-size: 0.75rem;
-            color: #666;
-        }
-
-        .time-badge {
-            background: rgba(0, 212, 255, 0.2);
-            color: #00d4ff;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-
-        /* Markdown 样式 */
-        .message-bubble h1,
-        .message-bubble h2,
-        .message-bubble h3 {
-            color: #00d4ff;
-            margin: 1em 0 0.5em 0;
-            font-weight: 600;
-        }
-
-        .message-bubble h1 { font-size: 1.5em; }
-        .message-bubble h2 { font-size: 1.3em; }
-        .message-bubble h3 { font-size: 1.1em; }
-
-        .message-bubble code {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 0.9em;
-            color: #00d4ff;
-        }
-
-        .message-bubble pre {
-            background: #000;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1rem;
-            border-radius: 8px;
-            overflow-x: auto;
-            margin: 1em 0;
-        }
-
-        .message-bubble pre code {
-            background: none;
-            padding: 0;
-            color: #e0e0e0;
-        }
-
-        .message-bubble ul,
-        .message-bubble ol {
-            margin-left: 1.5em;
-            margin: 0.5em 0;
-        }
-
-        .message-bubble li {
-            margin: 0.3em 0;
-        }
-
-        .message-bubble p {
-            margin: 0.5em 0;
-        }
-
-        /* 输入区域 */
-        .chat-input {
-            padding: 1.5rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(30, 30, 30, 0.5);
-            display: flex;
-            gap: 1rem;
-        }
-
-        #questionInput {
-            flex: 1;
-            background: rgba(40, 40, 40, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 0.875rem 1.25rem;
-            color: #fff;
-            font-size: 0.9375rem;
-            transition: all 0.2s;
-        }
-
-        #questionInput:focus {
-            outline: none;
-            border-color: #00d4ff;
-            background: rgba(40, 40, 40, 1);
-        }
-
-        #questionInput::placeholder {
-            color: #666;
-        }
-
-        #sendBtn {
-            background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            padding: 0.875rem 2rem;
-            font-size: 0.9375rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        #sendBtn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 212, 255, 0.3);
-        }
-
-        #sendBtn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* 侧边栏 */
-        .sidebar {
-            width: 320px;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .info-card {
-            background: rgba(20, 20, 20, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 1.5rem;
-        }
-
-        .info-card h3 {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #00d4ff;
-            margin-bottom: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            font-size: 0.875rem;
-        }
-
-        .info-item:last-child {
-            border-bottom: none;
-        }
-
-        .info-label {
-            color: #888;
-        }
-
-        .info-value {
-            color: #fff;
-            font-weight: 500;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #00ff88;
-            margin-right: 0.5rem;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* 流程图样式 */
-        .workflow-card {
-            background: rgba(20, 20, 20, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 1.5rem;
-        }
-
-        .workflow-steps {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-
-        .workflow-step {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem;
-            background: rgba(40, 40, 40, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-
-        .workflow-step.active {
-            background: rgba(0, 212, 255, 0.1);
-            border-color: #00d4ff;
-            box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
-        }
-
-        .workflow-step.completed {
-            background: rgba(0, 255, 136, 0.1);
-            border-color: rgba(0, 255, 136, 0.3);
-        }
-
-        .step-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            flex-shrink: 0;
-        }
-
-        .workflow-step.active .step-icon {
-            background: #00d4ff;
-            animation: bounce 1s ease-in-out infinite;
-        }
-
-        .workflow-step.completed .step-icon {
-            background: #00ff88;
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-
-        .step-info {
-            flex: 1;
-        }
-
-        .step-name {
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #fff;
-            margin-bottom: 0.25rem;
-        }
-
-        .step-desc {
-            font-size: 0.75rem;
-            color: #888;
-        }
-
-        .step-time {
-            font-size: 0.75rem;
-            color: #00d4ff;
-            font-weight: 500;
-        }
-
-        /* 搜索关键词展示 */
-        .search-queries {
-            margin-top: 1rem;
-            padding: 1rem;
-            background: rgba(0, 212, 255, 0.05);
-            border: 1px solid rgba(0, 212, 255, 0.2);
-            border-radius: 8px;
-        }
-
-        .search-queries-title {
-            font-size: 0.75rem;
-            color: #00d4ff;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-
-        .query-tag {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            background: rgba(0, 212, 255, 0.2);
-            border: 1px solid rgba(0, 212, 255, 0.3);
-            border-radius: 12px;
-            font-size: 0.75rem;
-            color: #00d4ff;
-            margin: 0.25rem;
-        }
-
-        /* 导出按钮 */
-        .export-btn {
-            width: 100%;
-            padding: 0.75rem;
-            background: rgba(0, 212, 255, 0.1);
-            border: 1px solid rgba(0, 212, 255, 0.3);
-            border-radius: 8px;
-            color: #00d4ff;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-top: 1rem;
-        }
-
-        .export-btn:hover {
-            background: rgba(0, 212, 255, 0.2);
-            border-color: #00d4ff;
-        }
-
-        /* 响应式 */
-        @media (max-width: 1024px) {
-            .sidebar {
-                display: none;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .main-container {
-                padding: 1rem;
-            }
-            
-            .navbar {
-                padding: 1rem;
-            }
-            
-            .nav-info {
-                display: none;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EduReflex 开发者控制台</title>
+  <style>
+    :root { --bg:#f5efe7; --panel:#ffffff; --line:#d8cdbf; --text:#211d18; --muted:#6f675f; --accent:#b85b26; --accent2:#1f6f78; --good:#2d7c5a; --warn:#c47b12; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font:14px/1.65 "Microsoft YaHei","PingFang SC","Segoe UI",sans-serif; color:var(--text); background:linear-gradient(180deg,#fbf7f2 0%,var(--bg) 100%); }
+    a { color:var(--accent2); text-decoration:none; }
+    .page { max-width:1500px; margin:0 auto; padding:24px; }
+    .hero,.layout,.stats { display:grid; gap:16px; }
+    .hero { grid-template-columns:1.2fr .9fr; margin-bottom:16px; }
+    .layout { grid-template-columns:340px 1fr 390px; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:20px; box-shadow:0 16px 36px rgba(70,50,34,.08); padding:18px; }
+    h1,h2,h3 { margin:0 0 12px; }
+    h1 { font-size:30px; }
+    .muted { color:var(--muted); }
+    .small { font-size:12px; }
+    .nav,.pills,.map { display:flex; gap:8px; flex-wrap:wrap; }
+    .pill,.map span { padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:#fff; }
+    .field { margin-bottom:12px; }
+    label { display:block; margin-bottom:6px; color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    input,textarea,button { font:inherit; }
+    input,textarea { width:100%; padding:11px 13px; border-radius:12px; border:1px solid var(--line); background:#fff; color:var(--text); }
+    textarea { min-height:120px; resize:vertical; }
+    .checkLabel { display:flex; align-items:center; gap:8px; text-transform:none; letter-spacing:normal; }
+    .checkLabel input { width:auto; }
+    button { width:100%; padding:11px 14px; border-radius:12px; border:0; font-weight:700; cursor:pointer; }
+    .primary { background:linear-gradient(135deg,#ca6636,#aa4d22); color:#fff; }
+    .secondary { margin-top:8px; background:#fff; border:1px solid var(--line); color:var(--text); }
+    .node,.plain,.item,.traceItem,.stat,.rich { border:1px solid var(--line); background:#fff; border-radius:16px; }
+    .node,.item,.traceItem,.stat,.plain,.rich { padding:12px; }
+    .node { margin-bottom:10px; position:relative; overflow:hidden; }
+    .node::before { content:""; position:absolute; left:0; top:0; bottom:0; width:5px; background:#d5c7b9; }
+    .node.active::before { background:var(--warn); }
+    .node.done::before { background:var(--good); }
+    .nodeHead { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-weight:700; }
+    .badge { padding:2px 9px; border-radius:999px; background:#f2ece5; font-size:11px; color:var(--muted); }
+    .feed,.trace { display:grid; gap:10px; max-height:330px; overflow:auto; }
+    .plain { white-space:pre-wrap; word-break:break-word; font-family:Consolas,"Courier New",monospace; font-size:12px; max-height:240px; overflow:auto; }
+    .rich { min-height:160px; }
+    .rich p { margin:0 0 10px; }
+    .rich ul,.rich ol { margin:0 0 10px 20px; padding:0; }
+    .rich h4 { margin:12px 0 8px; font-size:16px; }
+    .rich code { background:#f3f4f6; padding:1px 5px; border-radius:6px; font-family:Consolas,monospace; font-size:12px; }
+    .stats { grid-template-columns:1fr 1fr; }
+    .statValue { font-size:24px; font-weight:800; }
+    .barWrap { margin:8px 0; height:11px; border-radius:999px; background:#efe4d7; overflow:hidden; }
+    .bar { height:100%; border-radius:999px; background:linear-gradient(90deg,#ca6636,#1f6f78); }
+    .summaryGrid { display:grid; gap:8px; }
+    .summaryRow { display:grid; grid-template-columns:100px 1fr; gap:8px; }
+    .planList { display:grid; gap:10px; }
+    .planItem { padding:12px; border-radius:12px; background:#faf7f3; border:1px solid var(--line); }
+    ul { margin:0; padding-left:18px; }
+    @media (max-width:1200px) { .hero,.layout,.stats { grid-template-columns:1fr; } }
+  </style>
 </head>
 <body>
-    <!-- 顶部导航 -->
-    <div class="navbar">
-        <div class="logo">
-            <div class="logo-icon">🎓</div>
-            <span>EduReflex</span>
+  <div class="page">
+    <div class="hero">
+      <section class="card">
+        <h1>EduReflex 开发者控制台</h1>
+        <p class="muted">用于看懂 Agent 内部是怎么工作的：规划、检索、评审、长期记忆写入、短期状态流转，以及 trace 时间线。</p>
+      </section>
+      <section class="card">
+        <div class="nav" style="margin-bottom:12px;">
+          <a class="pill" href="/student" target="_blank">学生界面</a>
+          <a class="pill" href="/docs" target="_blank">OpenAPI 文档</a>
+          <a class="pill" href="/api/workflow" target="_blank">工作流 JSON</a>
         </div>
-        <div class="nav-info">
-            <span><span class="status-indicator"></span>系统运行中</span>
-            <span>多智能体协作</span>
+        <div class="pills">
+          <div class="pill">用户：<strong id="pUser">-</strong></div>
+          <div class="pill">线程：<strong id="pThread">-</strong></div>
+          <div class="pill">Trace：<strong id="pTrace">-</strong></div>
+          <div class="pill">状态：<strong id="pStatus">空闲</strong></div>
         </div>
+      </section>
     </div>
 
-    <!-- 主容器 -->
-    <div class="main-container">
-        <!-- 聊天区域 -->
-        <div class="chat-section">
-            <div class="chat-header">
-                <h2>学习导航助手</h2>
-                <p>基于 LangGraph 的多智能体协作系统</p>
-            </div>
+    <div class="layout">
+      <section class="card">
+        <h2>运行控制</h2>
+        <div class="field"><label for="apiBase">API 地址</label><input id="apiBase"></div>
+        <div class="field"><label for="userId">用户 ID</label><input id="userId" placeholder="例如 shuai98-dev"></div>
+        <div class="field"><label for="threadId">线程 ID</label><input id="threadId" placeholder="为空时自动生成"></div>
+        <div class="field"><label for="question">问题 / 学习目标</label><textarea id="question" placeholder="例如：请讲清楚 Python asyncio 的事件循环、任务调度和常见坑点。"></textarea></div>
+        <div class="field small muted"><label class="checkLabel"><input type="checkbox" id="reuseThread"> 连续会话：复用当前 thread_id</label></div>
+        <button class="primary" id="runBtn">开始执行</button>
+        <button class="secondary" id="memBtn">读取长期记忆</button>
+        <button class="secondary" id="histBtn">读取短期记忆</button>
+        <button class="secondary" id="traceBtn">读取 Trace</button>
+        <h3 style="margin-top:18px;">这个界面主要看什么</h3>
+        <ul class="muted">
+          <li>Planner 是否生成了合理计划。</li>
+          <li>Researcher 是走 RAG 还是降级搜索。</li>
+          <li>Critic 是否要求重做。</li>
+          <li>长期记忆和短期记忆分别长什么样。</li>
+          <li>一条请求的 span 时间线和耗时分布。</li>
+        </ul>
+        <h3 style="margin-top:18px;">工作流结构</h3>
+        <div id="workflowJson" class="plain">加载中...</div>
+      </section>
 
-            <div class="chat-messages" id="chatContainer">
-                <div class="message system">
-                    <div class="message-avatar">💡</div>
-                    <div class="message-content">
-                        <div class="message-bubble">
-                            欢迎使用 EduReflex！我由三个 AI 智能体协作驱动：<br>
-                            • Planner 负责规划学习路径<br>
-                            • Researcher 负责搜集知识<br>
-                            • Critic 负责质量把关<br><br>
-                            试试问我："帮我掌握 Python 异步编程"
-                        </div>
-                    </div>
-                </div>
-            </div>
+      <section class="card">
+        <h2>实时执行过程</h2>
+        <div class="node" data-node="planner"><div class="nodeHead"><span>规划智能体 Planner</span><span class="badge">待执行</span></div><div class="muted small" id="d-planner">等待生成学习计划</div></div>
+        <div class="node" data-node="researcher"><div class="nodeHead"><span>研究智能体 Researcher</span><span class="badge">待执行</span></div><div class="muted small" id="d-researcher">等待知识检索和整合</div></div>
+        <div class="node" data-node="critic"><div class="nodeHead"><span>评审智能体 Critic</span><span class="badge">待执行</span></div><div class="muted small" id="d-critic">等待质量审查</div></div>
+        <h3>事件流</h3>
+        <div id="feed" class="feed"></div>
+        <h3 style="margin-top:18px;">Planner 输出</h3>
+        <div id="plan" class="plain">等待 Planner 输出...</div>
+        <h3 style="margin-top:18px;">Critic 输出</h3>
+        <div id="critique" class="rich">等待 Critic 输出...</div>
+        <h3 style="margin-top:18px;">最终答案</h3>
+        <div id="answer" class="rich">等待最终答案...</div>
+      </section>
 
-            <div class="chat-input">
-                <input 
-                    type="text" 
-                    id="questionInput" 
-                    placeholder="输入你的学习目标..."
-                    onkeypress="if(event.key==='Enter') sendQuestion()"
-                >
-                <button id="sendBtn" onclick="sendQuestion()">发送</button>
-            </div>
+      <section class="card">
+        <h2>记忆与观测</h2>
+        <div class="stats">
+          <div class="stat"><div class="small muted">历史交互次数</div><div class="statValue" id="mCount">0</div></div>
+          <div class="stat"><div class="small muted">Trace Span 数量</div><div class="statValue" id="tCount">0</div></div>
         </div>
-
-        <!-- 侧边栏 -->
-        <div class="sidebar">
-            <!-- 工作流程图 -->
-            <div class="workflow-card">
-                <h3>执行流程</h3>
-                <div class="workflow-steps" id="workflowSteps">
-                    <div class="workflow-step" data-node="planner">
-                        <div class="step-icon">🧠</div>
-                        <div class="step-info">
-                            <div class="step-name">Planner</div>
-                            <div class="step-desc">规划学习路径</div>
-                        </div>
-                        <div class="step-time" id="time-planner"></div>
-                    </div>
-                    <div class="workflow-step" data-node="researcher">
-                        <div class="step-icon">🔍</div>
-                        <div class="step-info">
-                            <div class="step-name">Researcher</div>
-                            <div class="step-desc">搜集知识</div>
-                        </div>
-                        <div class="step-time" id="time-researcher"></div>
-                    </div>
-                    <div class="workflow-step" data-node="critic">
-                        <div class="step-icon">🔎</div>
-                        <div class="step-info">
-                            <div class="step-name">Critic</div>
-                            <div class="step-desc">评估质量</div>
-                        </div>
-                        <div class="step-time" id="time-critic"></div>
-                    </div>
-                </div>
-
-                <!-- 搜索关键词展示 -->
-                <div class="search-queries" id="searchQueries" style="display: none;">
-                    <div class="search-queries-title">🔍 搜索关键词</div>
-                    <div id="queryTags"></div>
-                </div>
-
-                <!-- 导出按钮 -->
-                <button class="export-btn" id="exportBtn" onclick="exportMarkdown()" style="display: none;">
-                    📥 导出学习笔记
-                </button>
-            </div>
-
-            <!-- 系统状态 -->
-            <div class="info-card">
-                <h3>系统状态</h3>
-                <div class="info-item">
-                    <span class="info-label">LLM 模型</span>
-                    <span class="info-value">DeepSeek-V3</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">搜索引擎</span>
-                    <span class="info-value">DuckDuckGo</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">RAG 系统</span>
-                    <span class="info-value">已连接</span>
-                </div>
-            </div>
-
-            <!-- 性能统计 -->
-            <div class="info-card" id="performanceCard" style="display: none;">
-                <h3>性能统计</h3>
-                <div class="info-item">
-                    <span class="info-label">总耗时</span>
-                    <span class="info-value" id="totalTime">-</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">重做次数</span>
-                    <span class="info-value" id="revisionCount">0</span>
-                </div>
-            </div>
-        </div>
+        <h3 style="margin-top:18px;">长期记忆（跨会话，基于 user_id）</h3>
+        <div id="memCtx" class="plain">等待会话开始...</div>
+        <h3 style="margin-top:18px;">最近学习主题</h3>
+        <div id="topics" class="plain">-</div>
+        <h3 style="margin-top:18px;">最近提问</h3>
+        <div id="questions" class="plain">-</div>
+        <h3 style="margin-top:18px;">短期记忆（当前线程状态）</h3>
+        <div id="historySummary" class="summaryGrid"></div>
+        <h3 style="margin-top:18px;">Trace 时间线</h3>
+        <div id="traceSummary" class="muted">等待 trace 数据...</div>
+        <div id="trace" class="trace"></div>
+        <h3 style="margin-top:18px;">系统地图</h3>
+        <div class="map"><span>学生输入</span><span>/api/query</span><span>Planner</span><span>Researcher</span><span>Critic</span><span>RAG</span><span>搜索</span><span>SQLite 长期记忆</span><span>Trace Store</span></div>
+      </section>
     </div>
+  </div>
 
-    <script>
-        const API_URL = 'http://localhost:8001/api/query';
-        const chatContainer = document.getElementById('chatContainer');
-        const questionInput = document.getElementById('questionInput');
-        const sendBtn = document.getElementById('sendBtn');
-        
-        let currentAnswer = '';
-        let searchQueries = [];
-
-        if (typeof marked !== 'undefined') {
-            marked.setOptions({
-                breaks: true,
-                gfm: true,
-            });
-        }
-
-        function addMessage(content, type, time = null) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${type}`;
-            
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.textContent = type === 'user' ? '👤' : type === 'agent' ? '🤖' : '⚡';
-            
-            const contentWrapper = document.createElement('div');
-            contentWrapper.className = 'message-content';
-            
-            const bubble = document.createElement('div');
-            bubble.className = 'message-bubble';
-            
-            if (type === 'agent' && typeof marked !== 'undefined') {
-                bubble.innerHTML = marked.parse(content);
-            } else {
-                bubble.innerHTML = content;
-            }
-            
-            contentWrapper.appendChild(bubble);
-            
-            if (time) {
-                const meta = document.createElement('div');
-                meta.className = 'message-meta';
-                meta.innerHTML = `<span class="time-badge">${time}</span>`;
-                contentWrapper.appendChild(meta);
-            }
-            
-            messageDiv.appendChild(avatar);
-            messageDiv.appendChild(contentWrapper);
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function updateWorkflowStep(nodeName, status, time = null) {
-            const step = document.querySelector(`[data-node="${nodeName}"]`);
-            if (!step) return;
-
-            // 移除所有状态
-            step.classList.remove('active', 'completed');
-            
-            // 添加新状态
-            if (status === 'active') {
-                step.classList.add('active');
-            } else if (status === 'completed') {
-                step.classList.add('completed');
-                if (time) {
-                    const timeEl = document.getElementById(`time-${nodeName}`);
-                    if (timeEl) timeEl.textContent = `${time}s`;
-                }
-            }
-        }
-
-        function resetWorkflow() {
-            const steps = document.querySelectorAll('.workflow-step');
-            steps.forEach(step => {
-                step.classList.remove('active', 'completed');
-                const nodeName = step.getAttribute('data-node');
-                const timeEl = document.getElementById(`time-${nodeName}`);
-                if (timeEl) timeEl.textContent = '';
-            });
-            
-            // 隐藏搜索关键词和导出按钮
-            document.getElementById('searchQueries').style.display = 'none';
-            document.getElementById('exportBtn').style.display = 'none';
-            document.getElementById('performanceCard').style.display = 'none';
-            
-            currentAnswer = '';
-            searchQueries = [];
-        }
-
-        function showSearchQueries(queries) {
-            if (!queries || queries.length === 0) return;
-            
-            searchQueries = queries;
-            const container = document.getElementById('searchQueries');
-            const tagsContainer = document.getElementById('queryTags');
-            
-            tagsContainer.innerHTML = '';
-            queries.forEach(query => {
-                const tag = document.createElement('span');
-                tag.className = 'query-tag';
-                tag.textContent = query;
-                tagsContainer.appendChild(tag);
-            });
-            
-            container.style.display = 'block';
-        }
-
-        function exportMarkdown() {
-            if (!currentAnswer) {
-                alert('暂无内容可导出');
-                return;
-            }
-
-            const content = `# 学习笔记\n\n生成时间：${new Date().toLocaleString()}\n\n${currentAnswer}`;
-            const blob = new Blob([content], { type: 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `学习笔记_${Date.now()}.md`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        async function sendQuestion() {
-            const question = questionInput.value.trim();
-            if (!question) return;
-
-            addMessage(question, 'user');
-            questionInput.value = '';
-            sendBtn.disabled = true;
-            sendBtn.innerHTML = '<span class="loading"></span>';
-
-            // 重置工作流
-            resetWorkflow();
-
-            const startTime = Date.now();
-            let revisionCount = 0;
-
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question: question, stream: true })
-                });
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-
-                while (true) {
-                    const {value, done} = await reader.read();
-                    if (done) break;
-
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-                                
-                                if (data.error) {
-                                    addMessage(`错误: ${data.error}`, 'system');
-                                } else if (data.done) {
-                                    const totalTime = data.total_time || ((Date.now() - startTime) / 1000).toFixed(1);
-                                    addMessage(`生成完成`, 'system', `${totalTime}秒`);
-                                    
-                                    // 显示性能统计
-                                    document.getElementById('totalTime').textContent = `${totalTime}s`;
-                                    document.getElementById('revisionCount').textContent = revisionCount;
-                                    document.getElementById('performanceCard').style.display = 'block';
-                                    
-                                    // 显示导出按钮
-                                    document.getElementById('exportBtn').style.display = 'block';
-                                } else if (data.answer) {
-                                    currentAnswer = data.answer;
-                                    addMessage(data.answer, 'agent');
-                                } else if (data.node) {
-                                    // 更新工作流状态
-                                    const nodeName = data.node.toLowerCase();
-                                    const time = data.time;
-                                    
-                                    // 标记当前节点为活动状态
-                                    updateWorkflowStep(nodeName, 'active');
-                                    
-                                    // 延迟后标记为完成
-                                    setTimeout(() => {
-                                        updateWorkflowStep(nodeName, 'completed', time);
-                                    }, 500);
-                                    
-                                    // 显示消息
-                                    if (data.message) {
-                                        const timeStr = time ? `${time}秒` : null;
-                                        addMessage(data.message, 'system', timeStr);
-                                        
-                                        // 检测重做
-                                        if (data.message.includes('重试') || data.message.includes('重做')) {
-                                            revisionCount++;
-                                        }
-                                        
-                                        // 提取搜索关键词
-                                        if (nodeName === 'planner' && data.message.includes('规划完成')) {
-                                            // 这里可以从消息中提取关键词，或者等待后续数据
-                                        }
-                                    }
-                                } else if (data.search_queries) {
-                                    showSearchQueries(data.search_queries);
-                                }
-                            } catch (e) {
-                                console.error('解析失败:', e);
-                            }
-                        }
-                    }
-                }
-            } catch (error) {
-                addMessage(`请求失败: ${error.message}`, 'system');
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = '发送';
-            }
-        }
-    </script>
+  <script>
+    const state = { traceId: '', threadId: '', timer: null };
+    const E = {
+      apiBase: document.getElementById('apiBase'), userId: document.getElementById('userId'), threadId: document.getElementById('threadId'), reuseThread: document.getElementById('reuseThread'), question: document.getElementById('question'),
+      pUser: document.getElementById('pUser'), pThread: document.getElementById('pThread'), pTrace: document.getElementById('pTrace'), pStatus: document.getElementById('pStatus'), workflowJson: document.getElementById('workflowJson'),
+      memCtx: document.getElementById('memCtx'), feed: document.getElementById('feed'), plan: document.getElementById('plan'), critique: document.getElementById('critique'), answer: document.getElementById('answer'), mCount: document.getElementById('mCount'), tCount: document.getElementById('tCount'), topics: document.getElementById('topics'), questions: document.getElementById('questions'), historySummary: document.getElementById('historySummary'), trace: document.getElementById('trace'), traceSummary: document.getElementById('traceSummary'),
+      runBtn: document.getElementById('runBtn'), memBtn: document.getElementById('memBtn'), histBtn: document.getElementById('histBtn'), traceBtn: document.getElementById('traceBtn')
+    };
+    const base = () => E.apiBase.value.replace(/\/$/, '');
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    function formatInline(text) {
+      return escapeHtml(text)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`(.+?)`/g, '<code>$1</code>');
+    }
+    function markdownToHtml(raw) {
+      const text = String(raw ?? '').replace(/\r/g, '');
+      const lines = text.split('\n');
+      const html = [];
+      let inUl = false;
+      let inOl = false;
+      const closeLists = () => {
+        if (inUl) { html.push('</ul>'); inUl = false; }
+        if (inOl) { html.push('</ol>'); inOl = false; }
+      };
+      for (const originalLine of lines) {
+        const line = originalLine.trim();
+        if (!line) { closeLists(); continue; }
+        if (/^#{1,6}\s+/.test(line)) { closeLists(); html.push(`<h4>${formatInline(line.replace(/^#{1,6}\s+/, ''))}</h4>`); continue; }
+        if (/^[-*]\s+/.test(line)) { if (!inUl) { closeLists(); html.push('<ul>'); inUl = true; } html.push(`<li>${formatInline(line.replace(/^[-*]\s+/, ''))}</li>`); continue; }
+        if (/^\d+\.\s+/.test(line)) { if (!inOl) { closeLists(); html.push('<ol>'); inOl = true; } html.push(`<li>${formatInline(line.replace(/^\d+\.\s+/, ''))}</li>`); continue; }
+        if (/^-{3,}$/.test(line)) { closeLists(); html.push('<hr>'); continue; }
+        closeLists();
+        html.push(`<p>${formatInline(line)}</p>`);
+      }
+      closeLists();
+      return html.join('') || `<p>${formatInline(text)}</p>`;
+    }
+    function renderRich(el, text, placeholder) {
+      const value = String(text ?? '').trim();
+      el.innerHTML = value ? markdownToHtml(value) : `<p>${escapeHtml(placeholder)}</p>`;
+    }
+    function renderPlain(el, text, placeholder) {
+      const value = String(text ?? '').replace(/```/g, '').replace(/\*\*/g, '').replace(/__/g, '').replace(/#/g, '').replace(/`/g, '').trim();
+      el.textContent = value || placeholder;
+    }
+    function renderPlan(raw) {
+      const value = String(raw ?? '').trim();
+      if (!value) { E.plan.textContent = '等待 Planner 输出...'; return; }
+      try {
+        const plan = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        const tasks = Array.isArray(plan.tasks) ? plan.tasks : [];
+        E.plan.innerHTML = `<div class="planList">${[`<div class="planItem"><strong>学习目标</strong><div style="margin-top:6px;">${escapeHtml(plan.goal || '未提供')}</div></div>`, ...tasks.map((task, index) => `<div class="planItem"><strong>任务 ${index + 1}：${escapeHtml(task.title || '未命名任务')}</strong><div style="margin-top:6px;">${escapeHtml(task.description || '')}</div></div>`)].join('')}</div>`;
+      } catch (_) {
+        renderPlain(E.plan, value, '等待 Planner 输出...');
+      }
+    }
+    function renderHistory(data) {
+      const stateData = (data && data.state) || {};
+      const rows = [
+        ['当前问题', stateData.input || '暂无'],
+        ['当前任务', stateData.current_task || '暂无'],
+        ['执行步数', stateData.step_count ?? 0],
+        ['修订次数', stateData.revision_count ?? 0],
+        ['下一节点', Array.isArray(data?.next_node) ? data.next_node.join(', ') || '无' : (data?.next_node || '无')],
+        ['检索词', Array.isArray(stateData.search_queries) ? stateData.search_queries.join('；') || '暂无' : '暂无']
+      ];
+      E.historySummary.innerHTML = rows.map(([label, value]) => `<div class="summaryRow"><strong>${escapeHtml(label)}</strong><div>${escapeHtml(value)}</div></div>`).join('');
+    }
+    function syncHeader() { E.pUser.textContent = E.userId.value || '-'; E.pThread.textContent = state.threadId || E.threadId.value || '-'; E.pTrace.textContent = state.traceId || '-'; }
+    function setStatus(value) { E.pStatus.textContent = value; }
+    function setNode(node, cls, text, badge) { const el = document.querySelector(`[data-node="${node}"]`); if (!el) return; el.className = `node ${cls}`.trim(); el.querySelector('.badge').textContent = badge || (cls === 'done' ? '完成' : cls === 'active' ? '执行中' : '待执行'); document.getElementById(`d-${node}`).textContent = text; }
+    function resetRuntime() { setNode('planner', '', '等待生成学习计划', '待执行'); setNode('researcher', '', '等待知识检索和整合', '待执行'); setNode('critic', '', '等待质量审查', '待执行'); E.feed.innerHTML = ''; E.plan.textContent = '等待 Planner 输出...'; E.critique.innerHTML = '<p>等待 Critic 输出...</p>'; E.answer.innerHTML = '<p>等待最终答案...</p>'; E.trace.innerHTML = ''; E.traceSummary.textContent = '等待 trace 数据...'; E.tCount.textContent = '0'; }
+    function addEvent(title, body, meta = []) { const item = document.createElement('div'); item.className = 'item'; item.innerHTML = `<strong>${escapeHtml(title)}</strong><div class="muted small" style="margin:6px 0 8px;">${escapeHtml(body)}</div><div class="small">${meta.map((m) => `<span class="pill" style="padding:4px 8px; margin-right:6px;">${escapeHtml(m)}</span>`).join('')}</div>`; E.feed.prepend(item); }
+    async function getJson(path) { const r = await fetch(base() + path); if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); }
+    async function loadWorkflow() { try { E.workflowJson.textContent = JSON.stringify(await getJson('/api/workflow'), null, 2); } catch (e) { E.workflowJson.textContent = '加载失败：' + e.message; } }
+    async function loadMemory() { const uid = E.userId.value.trim(); if (!uid) return; try { const d = await getJson('/api/memory/' + encodeURIComponent(uid)); const p = d.profile || {}; E.mCount.textContent = p.interaction_count || 0; renderPlain(E.memCtx, [`历史交互次数：${p.interaction_count || 0}`, `最近主题：${(p.recent_topics || []).join('、') || '暂无'}`, `上次回答摘要：${p.last_answer_summary || '暂无'}`].join('\n\n'), '暂无长期记忆'); E.topics.textContent = (p.recent_topics || []).join(' | ') || '-'; E.questions.textContent = (p.recent_questions || []).join(' | ') || '-'; } catch (e) { E.topics.textContent = '加载失败：' + e.message; } }
+    async function loadHistory() { const id = (state.threadId || E.threadId.value || '').trim(); if (!id) return; try { renderHistory(await getJson('/api/history/' + encodeURIComponent(id))); } catch (e) { E.historySummary.innerHTML = `<div class="muted small">加载失败：${escapeHtml(e.message)}</div>`; } }
+    function renderTrace(t) { const spans = t.spans || []; const s = t.summary || {}; const total = Number(s.total_duration_ms || Math.max(...spans.map((x) => Number(x.end_offset_ms || 0)), 1)); E.tCount.textContent = s.span_count || spans.length || 0; E.traceSummary.textContent = `状态=${t.status || '-'} ｜ 总耗时=${s.total_duration_ms || total}ms ｜ span=${s.span_count || spans.length || 0} ｜ 错误=${s.error_count || 0}`; E.trace.innerHTML = ''; if (!spans.length) { E.trace.innerHTML = '<div class="muted small">暂无 trace span。</div>'; return; } spans.forEach((sp) => { const left = total ? Number(sp.start_offset_ms || 0) / total * 100 : 0; const width = total ? Math.max(Number(sp.duration_ms || 0) / total * 100, 1.5) : 100; const row = document.createElement('div'); row.className = 'traceItem'; row.innerHTML = `<div class="small"><strong>${escapeHtml(sp.name)}</strong> ｜ 深度=${sp.depth || 0} ｜ ${sp.duration_ms || 0}ms</div><div class="barWrap"><div class="bar" style="margin-left:${left}%; width:${width}%"></div></div><div class="muted small">开始=${sp.start_offset_ms || 0}ms ｜ 结束=${sp.end_offset_ms || 0}ms ｜ 状态=${sp.status || '-'}</div>`; E.trace.appendChild(row); }); }
+    async function loadTrace() { if (!state.traceId) return; try { renderTrace(await getJson('/api/traces/' + encodeURIComponent(state.traceId))); } catch (e) { E.traceSummary.textContent = '加载失败：' + e.message; } }
+    function startTrace() { stopTrace(); state.timer = setInterval(loadTrace, 1200); }
+    function stopTrace() { if (state.timer) { clearInterval(state.timer); state.timer = null; } }
+    function onEvent(d) { if (d.event === 'session') { state.traceId = d.trace_id || ''; state.threadId = d.thread_id || ''; E.threadId.value = state.threadId; renderPlain(E.memCtx, d.memory_context || '暂无长期记忆。', '暂无长期记忆'); setStatus('执行中'); syncHeader(); startTrace(); addEvent('会话开始', '已创建新的 Agent 工作流。', [`user=${d.user_id}`, `thread=${d.thread_id}`, `trace=${d.trace_id}`]); return; } if (d.event === 'node') { setNode(d.node, 'active', d.summary || '节点执行中', '执行中'); setTimeout(() => setNode(d.node, 'done', d.summary || '节点已完成', '完成'), 320); if (d.plan) renderPlan(d.plan); if (d.critique) renderRich(E.critique, d.critique, '等待 Critic 输出...'); if (d.final_answer) renderRich(E.answer, d.final_answer, '等待最终答案...'); addEvent(d.label || d.node, d.summary || '节点状态更新', [`step=${d.step ?? '-'}`, `elapsed=${d.elapsed_s ?? '-'}s`]); return; } if (d.event === 'result') { renderPlan(d.plan); renderRich(E.critique, d.critique, '等待 Critic 输出...'); renderRich(E.answer, d.answer, '等待最终答案...'); addEvent('最终结果', '工作流已生成最终答案。', [`steps=${d.step_count ?? '-'}`, `revision=${d.revision_count ?? 0}`, `total=${d.total_time ?? '-'}s`]); return; } if (d.event === 'done') { setStatus('已完成'); stopTrace(); addEvent('执行结束', '本次工作流已结束。', [`thread=${d.thread_id}`, `trace=${d.trace_id}`]); loadMemory(); loadHistory(); loadTrace(); return; } if (d.event === 'error') { setStatus('错误'); stopTrace(); addEvent('执行失败', d.error || '未知错误', ['stream=error']); } }
+    async function runAgent() { const q = E.question.value.trim(); const u = E.userId.value.trim(); if (!q || !u) { alert('请先填写问题和用户 ID。'); return; } localStorage.setItem('edureflex-user-id', u); state.traceId = ''; if (!E.reuseThread.checked) { state.threadId = ''; E.threadId.value = ''; } syncHeader(); setStatus('启动中'); resetRuntime(); E.runBtn.disabled = true; try { const r = await fetch(base() + '/api/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q, user_id: u, thread_id: E.reuseThread.checked ? (state.threadId || E.threadId.value || null) : null, stream: true }) }); if (!r.ok || !r.body) throw new Error(`${r.status} ${r.statusText}`); const reader = r.body.getReader(); const dec = new TextDecoder('utf-8'); let buf = ''; while (true) { const { value, done } = await reader.read(); if (done) break; buf += dec.decode(value, { stream: true }); const parts = buf.split('\n\n'); buf = parts.pop() || ''; for (const part of parts) { const line = part.trim(); if (!line.startsWith('data:')) continue; const raw = line.slice(5).trim(); if (!raw) continue; try { onEvent(JSON.parse(raw)); } catch (e) { addEvent('SSE 解析失败', String(e), ['sse=parse']); } } } } catch (e) { setStatus('错误'); stopTrace(); addEvent('请求失败', e.message || String(e), ['network']); } finally { E.runBtn.disabled = false; } }
+    function init() { E.apiBase.value = window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:8001'; E.userId.value = localStorage.getItem('edureflex-user-id') || 'shuai98-dev'; E.runBtn.onclick = runAgent; E.memBtn.onclick = loadMemory; E.histBtn.onclick = loadHistory; E.traceBtn.onclick = loadTrace; E.question.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runAgent(); }); syncHeader(); loadWorkflow(); loadMemory(); }
+    init();
+  </script>
 </body>
 </html>

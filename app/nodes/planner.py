@@ -23,6 +23,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
+from app.services import trace_span
 from app.state import AgentState
 
 
@@ -66,12 +67,17 @@ def get_llm():
     支持 DeepSeek 和 OpenAI 两种后端，通过环境变量切换。"
     """
     provider = os.getenv("LLM_PROVIDER", "deepseek")
+
+    base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1").rstrip("/")
+    if not base_url.endswith("/v1"):
+        base_url = f"{base_url}/v1"
+
     
     if provider == "deepseek":
         return ChatOpenAI(
             model=os.getenv("MODEL_NAME", "deepseek-chat"),
             openai_api_key=os.getenv("DEEPSEEK_API_KEY"),
-            openai_api_base=os.getenv("DEEPSEEK_BASE_URL"),
+            openai_api_base=base_url,
             temperature=0.7,
         )
     else:  # openai
@@ -97,6 +103,7 @@ async def planner_node(state: AgentState) -> Dict:
     logger.info("🧠 [Planner] 开始规划任务...")
     
     user_input = state.get("input", "")
+    memory_context = state.get("memory_context", "")
     
     # ===== 增强的 Prompt（包含多个示例） =====
     system_prompt = """你是一个专业的学习规划助手。你的任务是将用户的学习目标拆解为 3-5 个有序的子任务。
@@ -133,39 +140,53 @@ async def planner_node(state: AgentState) -> Dict:
 
 现在请为用户的学习目标制定计划。"""
     
-    user_prompt = f"请为以下学习目标制定计划：\n{user_input}"
+    if memory_context:
+        user_prompt = (
+            f"用户长期记忆：\n{memory_context}\n\n"
+            f"请为以下学习目标制定计划：\n{user_input}"
+        )
+    else:
+        user_prompt = f"请为以下学习目标制定计划：\n{user_input}"
     
     # ===== 使用结构化输出 =====
     llm = get_llm()
     
     try:
-        # 方法1：使用 with_structured_output（推荐）
-        llm_with_structure = llm.with_structured_output(LearningPlan)
-        
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ]
-        
-        # 调用 LLM，直接返回 Pydantic 对象
-        plan: LearningPlan = await llm_with_structure.ainvoke(messages)
-        
-        logger.success(f"✅ [Planner] 规划完成，共 {len(plan.tasks)} 个子任务")
-        
-        # 转换为 JSON 字符串
-        plan_json = plan.model_dump()
-        plan_text = json.dumps(plan_json, ensure_ascii=False, indent=2)
-        
-        # 提取第一个任务
-        first_task = plan.tasks[0] if plan.tasks else None
-        
-        return {
-            "plan": plan_text,
-            "current_task": first_task.title if first_task else user_input,
-            "search_queries": [first_task.search_query if first_task else user_input],
-            "step_count": state.get("step_count", 0) + 1,
-            "messages": [HumanMessage(content=f"📋 规划完成：{plan.goal}")],
-        }
+        with trace_span(
+            "planner_node",
+            {
+                "thread_id": state.get("thread_id", ""),
+                "user_id": state.get("user_id", ""),
+                "has_memory_context": bool(memory_context),
+            },
+        ):
+            # 方法1：使用 with_structured_output（推荐）
+            llm_with_structure = llm.with_structured_output(LearningPlan, method="function_calling")
+            
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ]
+            
+            # 调用 LLM，直接返回 Pydantic 对象
+            plan: LearningPlan = await llm_with_structure.ainvoke(messages)
+            
+            logger.success(f"✅ [Planner] 规划完成，共 {len(plan.tasks)} 个子任务")
+            
+            # 转换为 JSON 字符串
+            plan_json = plan.model_dump()
+            plan_text = json.dumps(plan_json, ensure_ascii=False, indent=2)
+            
+            # 提取第一个任务
+            first_task = plan.tasks[0] if plan.tasks else None
+            
+            return {
+                "plan": plan_text,
+                "current_task": first_task.title if first_task else user_input,
+                "search_queries": [first_task.search_query if first_task else user_input],
+                "step_count": state.get("step_count", 0) + 1,
+                "messages": [HumanMessage(content=f"📋 规划完成：{plan.goal}")],
+            }
     
     except Exception as e:
         logger.error(f"❌ [Planner] 结构化输出失败: {e}")
@@ -173,33 +194,40 @@ async def planner_node(state: AgentState) -> Dict:
         
         # 降级方案：使用传统方式
         try:
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt),
-            ]
-            response = await llm.ainvoke(messages)
-            plan_text = response.content.strip()
+            with trace_span(
+                "planner_node_fallback",
+                {
+                    "thread_id": state.get("thread_id", ""),
+                    "user_id": state.get("user_id", ""),
+                },
+            ):
+                messages = [
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=user_prompt),
+                ]
+                response = await llm.ainvoke(messages)
+                plan_text = response.content.strip()
             
-            # 清理 Markdown 标记
-            if plan_text.startswith("```json"):
-                plan_text = plan_text.replace("```json", "").replace("```", "").strip()
-            elif plan_text.startswith("```"):
-                plan_text = plan_text.replace("```", "").strip()
+                # 清理 Markdown 标记
+                if plan_text.startswith("```json"):
+                    plan_text = plan_text.replace("```json", "").replace("```", "").strip()
+                elif plan_text.startswith("```"):
+                    plan_text = plan_text.replace("```", "").strip()
             
-            # 解析 JSON
-            plan_json = json.loads(plan_text)
+                # 解析 JSON
+                plan_json = json.loads(plan_text)
             
-            logger.success(f"✅ [Planner] 降级模式规划完成")
+                logger.success(f"✅ [Planner] 降级模式规划完成")
             
-            first_task = plan_json["tasks"][0] if plan_json.get("tasks") else {}
+                first_task = plan_json["tasks"][0] if plan_json.get("tasks") else {}
             
-            return {
-                "plan": plan_text,
-                "current_task": first_task.get("title", user_input),
-                "search_queries": [first_task.get("search_query", user_input)],
-                "step_count": state.get("step_count", 0) + 1,
-                "messages": [HumanMessage(content=f"📋 规划完成：{plan_json.get('goal', user_input)}")],
-            }
+                return {
+                    "plan": plan_text,
+                    "current_task": first_task.get("title", user_input),
+                    "search_queries": [first_task.get("search_query", user_input)],
+                    "step_count": state.get("step_count", 0) + 1,
+                    "messages": [HumanMessage(content=f"📋 规划完成：{plan_json.get('goal', user_input)}")],
+                }
         
         except Exception as e2:
             logger.error(f"❌ [Planner] 降级模式也失败: {e2}")

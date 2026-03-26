@@ -1,108 +1,95 @@
-"""
-Researcher 节点 - 知识研究员
-================================
+﻿"""Researcher node: collect knowledge and synthesize the answer."""
 
-职责：根据 Planner 的规划，调用工具获取知识
+from __future__ import annotations
 
-面试重点：
-1. 工具调用（Tool Use）：Agent 的核心能力
-2. 并发执行：同时调用多个工具，提升效率
-3. 结果融合：将多源信息整合成连贯的内容
-
-工程意义：
-- 展示了 Agent 与外部系统的交互能力
-- 异步并发是后端高性能的关键
-"""
-
-import asyncio
 from typing import Dict
-from loguru import logger
-from langchain_core.messages import HumanMessage
 
-from app.state import AgentState
-from app.tools.search import search_web, query_rag
+from langchain_core.messages import HumanMessage
+from loguru import logger
+
 from app.nodes.planner import get_llm
+from app.services import trace_span
+from app.state import AgentState
+from app.tools.search import RAG_FAILURE_CODES, query_rag, search_web
 
 
 async def researcher_node(state: AgentState) -> Dict:
-    """
-    研究节点：调用工具获取知识
-    
-    输入：state["search_queries"] - 搜索关键词列表
-    输出：state["search_results"] + state["rag_results"]
-    
-    面试话术：
-    "Researcher 是 Agent 的'手'，负责调用外部工具。
-    我们使用 asyncio.gather 并发执行搜索和 RAG 查询，
-    将原本串行的 6 秒操作压缩到 3 秒，这是异步编程的优势。"
-    """
-    logger.info("🔍 [Researcher] 开始收集知识...")
-    
+    logger.info("[Researcher] 开始收集知识")
+
     search_queries = state.get("search_queries", [])
     if not search_queries or not search_queries[0]:
-        logger.warning("⚠️ [Researcher] 没有搜索关键词，跳过")
+        logger.warning("[Researcher] Planner 没有生成可用的检索词")
         return {
-            "search_results": "无搜索关键词",
+            "search_results": "NO_SEARCH_QUERY",
             "rag_results": "",
             "step_count": state.get("step_count", 0) + 1,
+            "messages": [HumanMessage(content="未生成有效检索词，Researcher 无法继续执行")],
         }
-    
-    # 取第一个关键词（简化版，完整版可以遍历所有）
+
     query = search_queries[0]
-    
-    # ===== 并发调用工具（核心亮点） =====
+
     try:
-        # asyncio.gather 会并发执行多个协程
-        # 如果其中一个失败，不会影响其他的（return_exceptions=True）
-        results = await asyncio.gather(
-            search_web(query),
-            query_rag(query),
-            return_exceptions=True  # 捕获异常而不是抛出
-        )
-        
-        search_result = results[0] if not isinstance(results[0], Exception) else f"搜索失败: {results[0]}"
-        rag_result = results[1] if not isinstance(results[1], Exception) else f"RAG 失败: {results[1]}"
-        
-        logger.success("✅ [Researcher] 知识收集完成")
-        
-        # ===== 调用 LLM 整合信息 =====
+        rag_result = await query_rag(query)
+        rag_failed = rag_result in RAG_FAILURE_CODES
+
+        if rag_failed:
+            logger.warning("[Researcher] RAG 不可用，降级到网络搜索")
+            search_result = await search_web(query)
+            search_hint = search_result
+            rag_hint = "RAG 当前不可用。"
+        else:
+            search_result = "SKIPPED: RAG_OK"
+            search_hint = "本轮未使用网络搜索，因为 RAG 已成功命中。"
+            rag_hint = rag_result
+
         combined_info = f"""
 【网络搜索结果】
-{search_result}
+{search_hint}
 
-【权威知识库】
-{rag_result}
-"""
-        
-        synthesis_prompt = f"""请将以下多源信息整合成一段连贯的学习材料：
+【RAG 结果】
+{rag_hint}
+""".strip()
+
+        synthesis_prompt = f"""
+你是一名中文学习助教。请把下面的多来源资料整理为一份适合学生阅读的中文学习讲解。
 
 {combined_info}
 
-要求：
-1. 去除重复内容
-2. 按逻辑顺序组织（概念 -> 原理 -> 示例）
-3. 保留关键代码示例
-4. 标注信息来源（网络/知识库）
-"""
-        
-        llm = get_llm()
-        synthesis_response = await llm.ainvoke(synthesis_prompt)
-        synthesized_content = synthesis_response.content
-        
+输出要求：
+1. 全部使用简体中文，可保留必要英文术语，但要在括号里解释。
+2. 不要输出 Markdown 标记，不要出现 #、*、``` 这类符号。
+3. 先讲核心结论，再讲概念、原理、示例、注意事项。
+4. 如果原始资料是英文，先理解并翻译成中文，再进行整合。
+5. 如果 RAG 成功，以 RAG 内容为主；网络搜索只用于补充。
+6. 输出风格要自然清晰，适合学生直接阅读，不要写成日志。
+""".strip()
+
+        with trace_span(
+            "researcher_node",
+            {
+                "thread_id": state.get("thread_id", ""),
+                "user_id": state.get("user_id", ""),
+                "query": query,
+                "rag_failed": rag_failed,
+            },
+        ):
+            llm = get_llm()
+            synthesis_response = await llm.ainvoke(synthesis_prompt)
+            synthesized_content = synthesis_response.content
+
+        logger.success("[Researcher] 知识收集完成")
         return {
             "search_results": search_result,
             "rag_results": rag_result,
-            "final_answer": synthesized_content,  # 初步答案
+            "final_answer": synthesized_content,
             "step_count": state.get("step_count", 0) + 1,
-            "messages": [HumanMessage(content="📚 知识收集完成，已整合")],
+            "messages": [HumanMessage(content="知识收集与中文整合已完成")],
         }
-    
-    except Exception as e:
-        logger.error(f"❌ [Researcher] 执行失败: {e}")
+    except Exception as exc:
+        logger.error(f"[Researcher] 执行失败：{exc}")
         return {
-            "search_results": f"执行失败: {str(e)}",
+            "search_results": f"RESEARCHER_ERROR: {exc}",
             "rag_results": "",
             "step_count": state.get("step_count", 0) + 1,
-            "messages": [HumanMessage(content=f"❌ 知识收集失败: {str(e)}")],
+            "messages": [HumanMessage(content=f"Researcher 执行失败：{exc}")],
         }
-

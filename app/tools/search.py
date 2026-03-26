@@ -1,193 +1,153 @@
-"""
-搜索工具模块 - 封装外部知识获取能力
-==========================================
+﻿"""External knowledge tools for web search and RAG access."""
 
-面试重点：
-1. 工具封装：将第三方 API 包装成统一接口
-2. 异常处理：网络请求必须有超时和重试机制
-3. 结果处理：搜索结果需要去重、截断，防止 Token 溢出
-
-工程意义：
-- 解耦：节点逻辑不直接依赖具体搜索引擎
-- 可测试：可以 Mock 这些函数进行单元测试
-- 可扩展：未来可以轻松替换为其他搜索 API
-"""
+from __future__ import annotations
 
 import os
+from typing import Any, Dict, List
+
 import httpx
-from typing import List, Dict, Optional
 from loguru import logger
+
+from app.services import trace_span
+
+RAG_FAILURE_CODES = {
+    "RAG_NOT_CONFIGURED",
+    "RAG_UNAVAILABLE",
+    "RAG_TIMEOUT",
+    "RAG_ERROR",
+    "RAG_INVALID_RESPONSE",
+}
+
+
+def _format_search_results(results: List[Dict[str, Any]]) -> str:
+    if not results:
+        return "未检索到相关的网络结果。"
+
+    lines: List[str] = []
+    for index, result in enumerate(results, start=1):
+        title = result.get("title") or "未命名结果"
+        snippet = (result.get("body") or "").strip()[:240]
+        url = result.get("href") or ""
+        lines.append(f"结果 {index}：{title}\n摘要：{snippet}\n来源：{url}")
+    return "\n\n".join(lines)
 
 
 async def search_web(query: str, max_results: int = 3) -> str:
-    """
-    网络搜索工具（使用 DuckDuckGo，免费无需 API Key）
-    
-    参数：
-        query: 搜索关键词
-        max_results: 返回结果数量
-    
-    返回：
-        格式化的搜索结果摘要
-    
-    面试话术：
-    "我们使用 DuckDuckGo 作为免费搜索方案，通过 duckduckgo-search 库。
-    为了防止结果过长导致 Token 溢出，我们限制了返回条数并截断每条摘要。
-    如果需要更高质量的结果，可以替换为 Tavily API。"
-    """
+    """Search the public web with DuckDuckGo."""
     try:
-        # 使用新包名 ddgs（原 duckduckgo-search）
-        from ddgs import DDGS
-        
-        logger.info(f"🔍 开始搜索: {query}")
-        
-        # 使用同步 API
-        ddgs = DDGS()
-        results = list(ddgs.text(
-            query, 
-            max_results=max_results,
-            region="wt-wt",  # 全球区域
-        ))
-        
-        if not results:
-            return f"未找到关于 '{query}' 的相关信息。"
-        
-        # 格式化结果
-        formatted = []
-        for i, result in enumerate(results, 1):
-            title = result.get("title", "无标题")
-            snippet = result.get("body", "")[:200]  # 截断到 200 字符
-            url = result.get("href", "")
-            formatted.append(f"{i}. {title}\n   {snippet}\n   来源: {url}")
-        
-        output = "\n\n".join(formatted)
-        logger.success(f"✅ 搜索完成，返回 {len(results)} 条结果")
-        return output
-    
-    except Exception as e:
-        logger.error(f"❌ 搜索失败: {str(e)}")
-        return f"搜索时发生错误: {str(e)}"
+        with trace_span("search_web", {"query": query, "max_results": max_results}):
+            from ddgs import DDGS
+
+            logger.info(f"[Search] 开始网络搜索：{query}")
+            results = list(
+                DDGS().text(
+                    query,
+                    max_results=max_results,
+                    region="wt-wt",
+                )
+            )
+
+        formatted = _format_search_results(results)
+        logger.success(f"[Search] 搜索完成，返回 {len(results)} 条结果")
+        return formatted
+    except Exception as exc:
+        logger.error(f"[Search] 失败：{exc}")
+        return f"WEB_SEARCH_ERROR: {exc}"
 
 
 async def query_rag(question: str, top_k: int = 3) -> str:
-    """
-    调用 RAG 系统接口（你的第一个项目）
-    
-    参数：
-        question: 用户问题
-        top_k: 返回的文档数量
-    
-    返回：
-        RAG 系统返回的权威知识
-    
-    面试话术：
-    "这是我们系统的一大亮点：Agent 可以调用我之前开发的 RAG 测评系统。
-    这展示了微服务架构的思想 - 新系统不是重复造轮，而是复用已有能力。
-    我们使用 httpx 的异步客户端，确保不阻塞 Agent 的其他任务。"
-    """
+    """Query the configured RAG backend."""
     rag_url = os.getenv("RAG_API_URL")
-    
-    # 如果没有配置 RAG_API_URL，直接返回
     if not rag_url:
-        logger.debug("📚 RAG 系统未配置，跳过")
+        logger.debug("[RAG] 未配置 RAG_API_URL")
         return "RAG_NOT_CONFIGURED"
-    
+
     rag_key = os.getenv("RAG_API_KEY", "")
-    
+    request_formats = [
+        {"question": question, "top_k": top_k},
+        {"query": question, "top_k": top_k},
+        {"message": question, "top_k": top_k},
+        {"text": question, "top_k": top_k},
+    ]
+
     try:
-        logger.info(f"📚 调用 RAG 系统: {question}")
-        
-        # 准备多种可能的请求格式
-        request_formats = [
-            {"question": question, "top_k": top_k},
-            {"query": question},
-            {"message": question},
-            {"text": question},
-        ]
-        
-        async with httpx.AsyncClient(timeout=10.0) as client:  # 缩短超时时间
-            last_error = None
-            
-            for request_data in request_formats:
-                try:
-                    response = await client.post(
-                        rag_url,
-                        json=request_data,
-                        headers={
-                            "Authorization": f"Bearer {rag_key}" if rag_key else "",
-                            "Content-Type": "application/json",
-                        }
-                    )
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        break
-                    else:
-                        last_error = f"状态码 {response.status_code}"
+        with trace_span(
+            "query_rag",
+            {"question": question, "top_k": top_k, "rag_url": rag_url},
+        ):
+            async with httpx.AsyncClient(timeout=10.0, trust_env=False) as client:
+                last_error = "unknown error"
+                data: Dict[str, Any] | None = None
+
+                for payload in request_formats:
+                    try:
+                        response = await client.post(
+                            rag_url,
+                            json=payload,
+                            headers={
+                                "Authorization": f"Bearer {rag_key}" if rag_key else "",
+                                "Content-Type": "application/json",
+                            },
+                        )
+                    except httpx.TimeoutException:
+                        logger.warning("[RAG] 请求超时")
+                        return "RAG_TIMEOUT"
+                    except Exception as exc:
+                        last_error = str(exc)
                         continue
-                        
-                except Exception as e:
-                    last_error = str(e)
-                    continue
-            else:
-                # 所有格式都失败了
-                logger.warning(f"⚠️ RAG 系统不可用: {last_error}")
-                return "RAG_UNAVAILABLE"
-        
-        # 解析响应（兼容多种格式）
+
+                    if response.status_code != 200:
+                        last_error = f"status_code={response.status_code}"
+                        continue
+
+                    try:
+                        data = response.json()
+                    except ValueError:
+                        last_error = "invalid json response"
+                        continue
+
+                    break
+
+        if data is None:
+            logger.warning(f"[RAG] 后端不可用：{last_error}")
+            return "RAG_UNAVAILABLE"
+
         answer = (
-            data.get("answer") or 
-            data.get("response") or 
-            data.get("result") or 
-            data.get("output") or
-            data.get("content") or
-            ""
+            data.get("answer")
+            or data.get("response")
+            or data.get("result")
+            or data.get("output")
+            or data.get("content")
+            or ""
         )
-        
-        sources = data.get("sources", []) or data.get("references", []) or []
-        
+        sources = data.get("sources") or data.get("references") or []
+
         if not answer:
-            logger.warning(f"⚠️ RAG 返回格式异常: {str(data)[:200]}")
+            logger.warning(f"[RAG] 响应结构无效：{str(data)[:200]}")
             return "RAG_INVALID_RESPONSE"
-        
-        # 格式化输出
-        output = f"【权威知识】\n{answer}\n\n"
+
+        lines = ["[RAG回答]", str(answer).strip()]
         if sources:
-            output += "【参考来源】\n"
-            for i, src in enumerate(sources[:3], 1):
-                if isinstance(src, dict):
-                    title = src.get('title') or src.get('source') or '未知来源'
-                    output += f"{i}. {title}\n"
+            lines.append("")
+            lines.append("[RAG来源]")
+            for index, source in enumerate(sources[:3], start=1):
+                if isinstance(source, dict):
+                    title = source.get("title") or source.get("source") or "未知来源"
+                    lines.append(f"{index}. {title}")
                 else:
-                    output += f"{i}. {src}\n"
-        
-        logger.success("✅ RAG 查询完成")
-        return output
-    
-    except httpx.TimeoutException:
-        logger.warning("⚠️ RAG 系统请求超时")
-        return "RAG_TIMEOUT"
-    except Exception as e:
-        logger.warning(f"⚠️ RAG 调用失败: {str(e)}")
+                    lines.append(f"{index}. {source}")
+
+        logger.success("[RAG] 查询完成")
+        return "\n".join(lines)
+    except Exception as exc:
+        logger.warning(f"[RAG] 调用失败：{exc}")
         return "RAG_ERROR"
 
 
 async def search_with_fallback(query: str) -> str:
-    """
-    带降级策略的搜索（先 RAG，失败则用网络搜索）
-    
-    面试话术：
-    "这是一个容错设计。我们优先使用内部 RAG（权威且快），
-    如果失败或结果不足，自动降级到网络搜索。
-    这种 Fallback 机制在生产环境中非常重要。"
-    """
-    # 先尝试 RAG
+    """Prefer RAG, fall back to web search when RAG is unavailable."""
     rag_result = await query_rag(query)
-    
-    # 如果 RAG 返回特殊标记，说明失败了，降级到搜索
-    if rag_result in ["RAG_NOT_CONFIGURED", "RAG_UNAVAILABLE", "RAG_TIMEOUT", "RAG_ERROR", "RAG_INVALID_RESPONSE"]:
-        logger.debug("⚠️ RAG 不可用，使用网络搜索")
+    if rag_result in RAG_FAILURE_CODES:
+        logger.warning("[Search] RAG 不可用，改用网络搜索")
         return await search_web(query)
-    
     return rag_result
-

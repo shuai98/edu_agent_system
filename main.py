@@ -80,7 +80,10 @@ async def test_agent():
         "revision_needed": False,
         "revision_count": 0,
         "messages": [],
+        "user_id": "test-user",
         "thread_id": "test-001",
+        "memory_context": "",
+        "trace_id": "",
         "step_count": 0,
     }
     
@@ -119,7 +122,7 @@ def start_api_server():
     logger.info(f"📖 API 文档: http://{host}:{port}/docs")
     
     uvicorn.run(
-        "api.server:app",
+        "api.server_app:app",
         host=host,
         port=port,
         reload=debug,  # 开发模式启用热重载
@@ -134,9 +137,9 @@ def main():
     parser = argparse.ArgumentParser(description="EduReflex 多智能体学习系统")
     parser.add_argument(
         "--mode",
-        choices=["api", "test", "visualize"],
+        choices=["api", "test", "visualize", "mcp"],
         default="api",
-        help="运行模式：api=启动服务, test=测试工作流, visualize=可视化图结构",
+        help="运行模式：api=启动服务, test=测试工作流, visualize=可视化图结构, mcp=MCP 服务",
     )
     
     args = parser.parse_args()
@@ -156,6 +159,10 @@ def main():
         # 可视化图结构
         from app.graph import visualize_graph
         visualize_graph()
+
+    elif args.mode == "mcp":
+        from mcp_server import run_mcp_server
+        run_mcp_server()
 
 
 if __name__ == "__main__":

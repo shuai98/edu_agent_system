@@ -1,0 +1,519 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EduReflex 学生学习界面</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f5f6f8;
+      color: #1f2329;
+      font: 15px/1.7 "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+    }
+    a { color: #1769aa; text-decoration: none; }
+    .page { max-width: 1120px; margin: 0 auto; padding: 28px 18px 40px; }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .title h1 { margin: 0 0 6px; font-size: 30px; }
+    .title p { margin: 0; color: #5f6b7a; }
+    .links { display: flex; gap: 10px; flex-wrap: wrap; }
+    .links a {
+      padding: 8px 12px;
+      background: #fff;
+      border: 1px solid #d8dde6;
+      border-radius: 10px;
+      color: #1f2329;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 16px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #d8dde6;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 8px 24px rgba(26, 38, 53, 0.06);
+    }
+    .card h2, .card h3 { margin: 0 0 12px; }
+    .formRow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { margin-bottom: 14px; }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #6b7280;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    input, textarea, button {
+      font: inherit;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 10px;
+      border: 1px solid #cfd6e0;
+      background: #fff;
+      color: #1f2329;
+    }
+    textarea { min-height: 140px; resize: vertical; }
+    .checkLabel {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: #4b5563;
+      font-size: 13px;
+    }
+    .checkLabel input { width: auto; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .primary { background: #1769aa; color: #fff; }
+    .secondary { background: #f3f5f8; color: #1f2329; border: 1px solid #d8dde6; }
+    .statusBar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .statusItem {
+      padding: 12px;
+      border-radius: 12px;
+      background: #f7f9fc;
+      border: 1px solid #e1e7ef;
+    }
+    .statusItem .label { color: #6b7280; font-size: 12px; }
+    .statusItem .value { font-size: 18px; font-weight: 800; margin-top: 4px; }
+    .steps { display: grid; gap: 10px; margin-bottom: 16px; }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid #d8dde6;
+      background: #fff;
+    }
+    .stepDot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: #cbd5e1;
+      flex: 0 0 auto;
+    }
+    .step.active .stepDot { background: #f59e0b; }
+    .step.done .stepDot { background: #16a34a; }
+    .step strong { display: block; }
+    .step span { font-size: 12px; color: #6b7280; }
+    .plain, .event, .memoryBox {
+      border: 1px solid #d8dde6;
+      border-radius: 12px;
+      background: #fff;
+    }
+    .event, .memoryBox { padding: 12px; }
+    .plain {
+      padding: 14px;
+      min-height: 120px;
+    }
+    .rich {
+      min-height: 180px;
+      padding: 14px;
+      border: 1px solid #d8dde6;
+      border-radius: 12px;
+      background: #fff;
+    }
+    .rich p { margin: 0 0 10px; }
+    .rich ul, .rich ol { margin: 0 0 10px 20px; padding: 0; }
+    .rich h4 { margin: 12px 0 8px; font-size: 16px; }
+    .rich code {
+      background: #f3f4f6;
+      padding: 1px 5px;
+      border-radius: 6px;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+    }
+    .planList { display: grid; gap: 10px; }
+    .planItem {
+      padding: 12px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid #dce4ee;
+    }
+    .feed { display: grid; gap: 10px; max-height: 240px; overflow: auto; }
+    .muted { color: #6b7280; }
+    .small { font-size: 12px; }
+    .tags { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tag {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #f3f5f8;
+      border: 1px solid #d8dde6;
+    }
+    .summaryGrid { display: grid; gap: 8px; }
+    .summaryRow {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 8px;
+      align-items: start;
+    }
+    .summaryRow strong { color: #374151; }
+    @media (max-width: 980px) {
+      .layout, .formRow, .statusBar { grid-template-columns: 1fr; }
+      .topbar { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="title">
+        <h1>EduReflex 学生学习界面</h1>
+        <p>面向学生的简洁界面。输入问题后，系统会自动规划、检索并给出中文讲解。</p>
+      </div>
+      <div class="links">
+        <a href="/dev" target="_blank">开发者界面</a>
+        <a href="/docs" target="_blank">接口文档</a>
+      </div>
+    </div>
+
+    <div class="layout">
+      <section class="card">
+        <h2>提问</h2>
+        <div class="formRow">
+          <div class="field">
+            <label for="apiBase">API 地址</label>
+            <input id="apiBase">
+          </div>
+          <div class="field">
+            <label for="userId">用户 ID</label>
+            <input id="userId" placeholder="例如 stu-001">
+          </div>
+        </div>
+        <div class="field">
+          <label for="threadId">线程 ID</label>
+          <input id="threadId" placeholder="留空自动生成；勾选连续学习时会复用当前线程">
+        </div>
+        <div class="field">
+          <label class="checkLabel"><input id="reuseThread" type="checkbox"> 连续学习：复用当前 thread_id</label>
+        </div>
+        <div class="field">
+          <label for="question">问题</label>
+          <textarea id="question" placeholder="例如：请从零开始讲清楚 Python asyncio 的事件循环、await 和任务调度，并举出常见错误示例。"></textarea>
+        </div>
+        <div class="actions">
+          <button class="primary" id="runBtn">开始学习</button>
+          <button class="secondary" id="memoryBtn">读取长期记忆</button>
+          <button class="secondary" id="historyBtn">读取短期记忆</button>
+        </div>
+
+        <div class="statusBar" style="margin-top:18px;">
+          <div class="statusItem"><div class="label">当前用户</div><div class="value" id="sUser">-</div></div>
+          <div class="statusItem"><div class="label">当前线程</div><div class="value" id="sThread">-</div></div>
+          <div class="statusItem"><div class="label">当前状态</div><div class="value" id="sStatus">空闲</div></div>
+        </div>
+
+        <h3>执行进度</h3>
+        <div class="steps">
+          <div class="step" data-node="planner"><div class="stepDot"></div><div><strong>规划问题</strong><span id="step-planner">等待开始</span></div></div>
+          <div class="step" data-node="researcher"><div class="stepDot"></div><div><strong>检索与整合知识</strong><span id="step-researcher">等待开始</span></div></div>
+          <div class="step" data-node="critic"><div class="stepDot"></div><div><strong>审查答案</strong><span id="step-critic">等待开始</span></div></div>
+        </div>
+
+        <h3>学习计划</h3>
+        <div id="plan" class="plain">等待系统生成计划...</div>
+
+        <h3 style="margin-top:16px;">系统回答</h3>
+        <div id="answer" class="rich">等待系统回答...</div>
+
+        <h3 style="margin-top:16px;">评审意见</h3>
+        <div id="critique" class="plain">等待评审结果...</div>
+
+        <h3 style="margin-top:16px;">执行事件</h3>
+        <div id="feed" class="feed"></div>
+      </section>
+
+      <aside class="card">
+        <h2>记忆与会话</h2>
+
+        <div class="memoryBox" style="margin-bottom:14px;">
+          <div class="small muted">长期记忆（跨会话，基于 user_id）</div>
+          <div id="memoryContext" class="plain" style="margin-top:8px; min-height: 100px;">等待会话开始...</div>
+          <div class="small muted" style="margin:10px 0 6px;">最近主题</div>
+          <div id="topics" class="tags"></div>
+          <div class="small muted" style="margin:10px 0 6px;">最近提问</div>
+          <div id="questions" class="plain" style="min-height: 80px;">暂无记录</div>
+        </div>
+
+        <div class="memoryBox">
+          <div class="small muted">短期记忆（当前会话，基于 thread_id）</div>
+          <div id="historySummary" class="summaryGrid" style="margin-top:10px;"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const state = { threadId: '', traceId: '' };
+    const E = {
+      apiBase: document.getElementById('apiBase'), userId: document.getElementById('userId'), threadId: document.getElementById('threadId'), reuseThread: document.getElementById('reuseThread'), question: document.getElementById('question'),
+      plan: document.getElementById('plan'), answer: document.getElementById('answer'), critique: document.getElementById('critique'), feed: document.getElementById('feed'), memoryContext: document.getElementById('memoryContext'), topics: document.getElementById('topics'), questions: document.getElementById('questions'), historySummary: document.getElementById('historySummary'),
+      runBtn: document.getElementById('runBtn'), memoryBtn: document.getElementById('memoryBtn'), historyBtn: document.getElementById('historyBtn'), sUser: document.getElementById('sUser'), sThread: document.getElementById('sThread'), sStatus: document.getElementById('sStatus')
+    };
+
+    const base = () => E.apiBase.value.replace(/\/$/, '');
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    const stripMarkdown = (value) => String(value ?? '').replace(/```/g, '').replace(/\*\*/g, '').replace(/__/g, '').replace(/#/g, '').replace(/`/g, '');
+    function formatInline(text) {
+      return escapeHtml(text)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`(.+?)`/g, '<code>$1</code>');
+    }
+    function markdownToHtml(raw) {
+      const text = String(raw ?? '').replace(/\r/g, '');
+      const lines = text.split('\n');
+      const html = [];
+      let inUl = false;
+      let inOl = false;
+      const closeLists = () => {
+        if (inUl) { html.push('</ul>'); inUl = false; }
+        if (inOl) { html.push('</ol>'); inOl = false; }
+      };
+      for (const originalLine of lines) {
+        const line = originalLine.trim();
+        if (!line) { closeLists(); continue; }
+        if (/^#{1,6}\s+/.test(line)) {
+          closeLists();
+          html.push(`<h4>${formatInline(line.replace(/^#{1,6}\s+/, ''))}</h4>`);
+          continue;
+        }
+        if (/^[-*]\s+/.test(line)) {
+          if (!inUl) { closeLists(); html.push('<ul>'); inUl = true; }
+          html.push(`<li>${formatInline(line.replace(/^[-*]\s+/, ''))}</li>`);
+          continue;
+        }
+        if (/^\d+\.\s+/.test(line)) {
+          if (!inOl) { closeLists(); html.push('<ol>'); inOl = true; }
+          html.push(`<li>${formatInline(line.replace(/^\d+\.\s+/, ''))}</li>`);
+          continue;
+        }
+        if (/^-{3,}$/.test(line)) {
+          closeLists();
+          html.push('<hr>');
+          continue;
+        }
+        closeLists();
+        html.push(`<p>${formatInline(line)}</p>`);
+      }
+      closeLists();
+      return html.join('') || `<p>${formatInline(text)}</p>`;
+    }
+    function renderRich(el, text, placeholder) {
+      const value = String(text ?? '').trim();
+      if (!value) {
+        el.innerHTML = `<p>${escapeHtml(placeholder)}</p>`;
+        return;
+      }
+      el.innerHTML = markdownToHtml(value);
+    }
+    function renderPlain(el, text, placeholder) {
+      const value = stripMarkdown(text || '').trim();
+      el.textContent = value || placeholder;
+    }
+    function renderPlan(raw) {
+      const value = String(raw ?? '').trim();
+      if (!value) {
+        E.plan.textContent = '等待系统生成计划...';
+        return;
+      }
+      try {
+        const plan = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        const tasks = Array.isArray(plan.tasks) ? plan.tasks : [];
+        const parts = [`<div class="planList">`];
+        parts.push(`<div class="planItem"><strong>学习目标</strong><div style="margin-top:6px;">${escapeHtml(plan.goal || '未提供')}</div></div>`);
+        tasks.forEach((task, index) => {
+          parts.push(`<div class="planItem"><strong>任务 ${index + 1}：${escapeHtml(task.title || '未命名任务')}</strong><div style="margin-top:6px;">${escapeHtml(task.description || '')}</div></div>`);
+        });
+        parts.push(`</div>`);
+        E.plan.innerHTML = parts.join('');
+      } catch (_) {
+        renderPlain(E.plan, value, '等待系统生成计划...');
+      }
+    }
+    function renderHistory(data) {
+      const stateData = (data && data.state) || {};
+      const rows = [
+        ['当前问题', stateData.input || '暂无'],
+        ['当前任务', stateData.current_task || '暂无'],
+        ['执行步数', stateData.step_count ?? 0],
+        ['修订次数', stateData.revision_count ?? 0],
+        ['下一节点', Array.isArray(data?.next_node) ? data.next_node.join(', ') || '无' : (data?.next_node || '无')],
+        ['检索词', Array.isArray(stateData.search_queries) ? stateData.search_queries.join('；') || '暂无' : '暂无']
+      ];
+      E.historySummary.innerHTML = rows.map(([label, value]) => `<div class="summaryRow"><strong>${escapeHtml(label)}</strong><div>${escapeHtml(value)}</div></div>`).join('');
+    }
+    function syncStatus() { E.sUser.textContent = E.userId.value || '-'; E.sThread.textContent = state.threadId || E.threadId.value || '-'; }
+    function setStatus(value) { E.sStatus.textContent = value; }
+    function setStep(node, cls, text) {
+      const el = document.querySelector(`[data-node="${node}"]`);
+      if (!el) return;
+      el.className = `step ${cls}`.trim();
+      document.getElementById(`step-${node}`).textContent = text;
+    }
+    function resetUI() {
+      setStep('planner', '', '等待开始');
+      setStep('researcher', '', '等待开始');
+      setStep('critic', '', '等待开始');
+      E.plan.textContent = '等待系统生成计划...';
+      E.answer.innerHTML = '<p>等待系统回答...</p>';
+      E.critique.textContent = '等待评审结果...';
+      E.feed.innerHTML = '';
+    }
+    function addEvent(title, body) {
+      const item = document.createElement('div');
+      item.className = 'event';
+      item.innerHTML = `<strong>${escapeHtml(title)}</strong><div class="small muted" style="margin-top:6px;">${escapeHtml(body)}</div>`;
+      E.feed.prepend(item);
+    }
+    async function getJson(path) {
+      const response = await fetch(base() + path);
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      return response.json();
+    }
+    async function loadMemory() {
+      const userId = E.userId.value.trim();
+      if (!userId) return;
+      const data = await getJson('/api/memory/' + encodeURIComponent(userId));
+      const profile = data.profile || {};
+      renderPlain(E.memoryContext, [
+        `历史交互次数：${profile.interaction_count || 0}`,
+        `最近主题：${(profile.recent_topics || []).join('、') || '暂无'}`,
+        `上次回答摘要：${profile.last_answer_summary || '暂无'}`
+      ].join('\n\n'), '暂无长期记忆');
+      const topics = profile.recent_topics || [];
+      E.topics.innerHTML = topics.length ? topics.map((topic) => `<span class="tag">${escapeHtml(topic)}</span>`).join('') : '<span class="muted small">暂无主题</span>';
+      renderPlain(E.questions, (profile.recent_questions || []).join('\n\n'), '暂无记录');
+    }
+    async function loadHistory() {
+      const threadId = (state.threadId || E.threadId.value || '').trim();
+      if (!threadId) return;
+      renderHistory(await getJson('/api/history/' + encodeURIComponent(threadId)));
+    }
+    function handleEvent(payload) {
+      if (payload.event === 'session') {
+        state.threadId = payload.thread_id || '';
+        state.traceId = payload.trace_id || '';
+        E.threadId.value = state.threadId;
+        renderPlain(E.memoryContext, payload.memory_context || '暂无长期记忆。', '暂无长期记忆');
+        setStatus('学习中');
+        syncStatus();
+        addEvent('会话开始', '系统已接收问题，准备进入规划阶段。');
+        return;
+      }
+      if (payload.event === 'node') {
+        setStep(payload.node, 'active', payload.summary || '执行中');
+        setTimeout(() => setStep(payload.node, 'done', payload.summary || '已完成'), 280);
+        if (payload.plan) renderPlan(payload.plan);
+        if (payload.final_answer) renderRich(E.answer, payload.final_answer, '等待系统回答...');
+        if (payload.critique) renderPlain(E.critique, payload.critique, '等待评审结果...');
+        addEvent(payload.label || payload.node, payload.summary || '节点状态更新');
+        return;
+      }
+      if (payload.event === 'result') {
+        renderPlan(payload.plan);
+        renderRich(E.answer, payload.answer, '等待系统回答...');
+        renderPlain(E.critique, payload.critique, '等待评审结果...');
+        addEvent('生成完成', '系统已经返回最终答案。');
+        return;
+      }
+      if (payload.event === 'done') {
+        setStatus('已完成');
+        addEvent('学习结束', '本次学习流程已经完成。');
+        loadMemory().catch((error) => addEvent('读取长期记忆失败', error.message));
+        loadHistory().catch((error) => addEvent('读取短期记忆失败', error.message));
+        return;
+      }
+      if (payload.event === 'error') {
+        setStatus('错误');
+        addEvent('执行失败', payload.error || '未知错误');
+      }
+    }
+    async function runAgent() {
+      const question = E.question.value.trim();
+      const userId = E.userId.value.trim();
+      if (!question || !userId) {
+        alert('请先填写问题和用户 ID。');
+        return;
+      }
+      localStorage.setItem('edureflex-student-user-id', userId);
+      if (!E.reuseThread.checked) { state.threadId = ''; E.threadId.value = ''; }
+      syncStatus();
+      setStatus('启动中');
+      resetUI();
+      E.runBtn.disabled = true;
+      try {
+        const response = await fetch(base() + '/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question,
+            user_id: userId,
+            thread_id: E.reuseThread.checked ? (state.threadId || E.threadId.value || null) : null,
+            stream: true
+          })
+        });
+        if (!response.ok || !response.body) throw new Error(`${response.status} ${response.statusText}`);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith('data:')) continue;
+            const raw = line.slice(5).trim();
+            if (!raw) continue;
+            try { handleEvent(JSON.parse(raw)); } catch (error) { addEvent('SSE 解析失败', String(error)); }
+          }
+        }
+      } catch (error) {
+        setStatus('错误');
+        addEvent('请求失败', error.message || String(error));
+      } finally {
+        E.runBtn.disabled = false;
+      }
+    }
+    function init() {
+      E.apiBase.value = window.location.origin.startsWith('http') ? window.location.origin : 'http://localhost:8001';
+      E.userId.value = localStorage.getItem('edureflex-student-user-id') || localStorage.getItem('edureflex-user-id') || 'stu-001';
+      E.runBtn.onclick = runAgent;
+      E.memoryBtn.onclick = () => loadMemory().catch((error) => addEvent('读取长期记忆失败', error.message));
+      E.historyBtn.onclick = () => loadHistory().catch((error) => addEvent('读取短期记忆失败', error.message));
+      E.question.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') runAgent();
+      });
+      syncStatus();
+      loadMemory().catch(() => {});
+    }
+    init();
+  </script>
+</body>
+</html>

@@ -52,7 +52,10 @@ class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
     
     # ===== 元数据 =====
+    user_id: str  # 用户 ID，用于长期记忆聚合
     thread_id: str  # 会话 ID，用于 Redis 持久化的键
+    memory_context: str  # 注入给 Agent 的长期记忆摘要
+    trace_id: str  # 当前请求的链路追踪 ID
     step_count: int  # 当前执行到第几步（用于前端进度展示）
 
 
